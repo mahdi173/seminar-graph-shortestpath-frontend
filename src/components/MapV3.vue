@@ -165,8 +165,8 @@ export default {
       }
     };
 
-    // Draw the graph edges
-    const drawGraphEdges = () => {
+    // Draw the graph edges based on the reduced graph from the backend
+    const drawGraphEdges = (reducedGraph) => {
       if (!map.value) return;
 
       // Clear existing edges
@@ -175,17 +175,19 @@ export default {
       });
       graphEdges.value = [];
 
-      // Draw new edges
-      points.value.forEach(point1 => {
-        points.value.forEach(point2 => {
-          if (point1.id !== point2.id) {
-            const edge = L.polyline(
-              [[point1.latlng.lat, point1.latlng.lng], [point2.latlng.lat, point2.latlng.lng]],
-              { color: 'gray', weight: 1 }
-            ).addTo(map.value);
-            graphEdges.value.push(edge);
-          }
-        });
+      // Draw edges based on the reduced graph
+      reducedGraph.edges.forEach(edge => {
+        const sourcePoint = points.value.find(p => p.id === edge.source);
+        const targetPoint = points.value.find(p => p.id === edge.target);
+
+        if (sourcePoint && targetPoint) {
+          const line = L.polyline(
+            [[sourcePoint.latlng.lat, sourcePoint.latlng.lng], [targetPoint.latlng.lat, targetPoint.latlng.lng]],
+            { color: 'gray', weight: 1 }
+          ).addTo(map.value);
+
+          graphEdges.value.push(line);
+        }
       });
     };
 
@@ -220,13 +222,16 @@ export default {
           body: JSON.stringify({ geojson: geoJSON })
         });
 
-        if (response.ok) {
-          const result = await response.json();
-          console.log("Graph received:", result);
-          drawGraphEdges(); // Draw the graph edges
-        } else {
+        if (!response.ok) {
           alert('Failed to fetch the graph.');
+          return;
         }
+
+        const result = await response.json();
+        console.log("Reduced Graph Received:", result);
+
+        // Pass the reduced graph to the drawGraphEdges function
+        drawGraphEdges(result);
       } catch (error) {
         console.error('Error fetching graph:', error);
         alert('An error occurred while fetching the graph.');
